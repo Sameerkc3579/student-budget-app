@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';  // For jsonEncode and jsonDecode
+
 
 void main() {
   runApp(const StudentBudgetApp());
@@ -37,28 +40,66 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? filterEndDate;
   String? filterCategory;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  /// Save all data to SharedPreferences
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setDouble('totalBudget', totalBudget);
+    prefs.setString('expenses', jsonEncode(expenses));
+    prefs.setString('filterStartDate', filterStartDate?.toIso8601String() ?? '');
+    prefs.setString('filterEndDate', filterEndDate?.toIso8601String() ?? '');
+    prefs.setString('filterCategory', filterCategory ?? '');
+  }
+
+  /// Load all data from SharedPreferences
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      totalBudget = prefs.getDouble('totalBudget') ?? 500.0;
+      expenses = (jsonDecode(prefs.getString('expenses') ?? '[]') as List<dynamic>)
+          .map((e) => e as Map<String, dynamic>)
+          .toList();
+      filterStartDate = prefs.getString('filterStartDate') != null && prefs.getString('filterStartDate')!.isNotEmpty
+          ? DateTime.parse(prefs.getString('filterStartDate')!)
+          : null;
+      filterEndDate = prefs.getString('filterEndDate') != null && prefs.getString('filterEndDate')!.isNotEmpty
+          ? DateTime.parse(prefs.getString('filterEndDate')!)
+          : null;
+      filterCategory = prefs.getString('filterCategory');
+    });
+  }
+
   void setTotalBudget(double newBudget) {
     setState(() {
       totalBudget = newBudget;
     });
+  _saveData();
   }
 
   void addExpense(String title, double amount, String category, DateTime dateTime) {
     setState(() {
       expenses.add({'title': title, 'amount': amount, 'category': category, 'dateTime': dateTime});
     });
+  _saveData();
   }
 
   void updateExpense(int index, String title, double amount, String category, DateTime dateTime) {
     setState(() {
       expenses[index] = {'title': title, 'amount': amount, 'category': category, 'dateTime': dateTime};
     });
+  _saveData();
   }
 
   void deleteExpense(int index) {
     setState(() {
       expenses.removeAt(index);
     });
+  _saveData();
   }
 
   void applyFilters(DateTime? startDate, DateTime? endDate, String? category) {
@@ -67,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
       filterEndDate = endDate;
       filterCategory = category;
     });
+  _saveData();
   }
 
   List<Map<String, dynamic>> get filteredExpenses {
