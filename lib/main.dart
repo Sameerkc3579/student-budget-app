@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 
 void main() {
   runApp(const StudentBudgetApp());
@@ -15,6 +16,7 @@ class StudentBudgetApp extends StatelessWidget {
       title: 'Student Budget App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const HomeScreen(),
     );
@@ -29,13 +31,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  double totalBudget = 500.0;  // Initial default budget in rupees
+  double totalBudget = 500.0;
   List<Map<String, dynamic>> expenses = [];
   DateTime? filterStartDate;
   DateTime? filterEndDate;
   String? filterCategory;
 
-  // Method to update the total budget
   void setTotalBudget(double newBudget) {
     setState(() {
       totalBudget = newBudget;
@@ -72,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return expenses.where((expense) {
       final matchesDate = (filterStartDate == null || expense['dateTime'].isAfter(filterStartDate!)) &&
           (filterEndDate == null || expense['dateTime'].isBefore(filterEndDate!.add(const Duration(days: 1))));
+
       final matchesCategory = filterCategory == null || expense['category'] == filterCategory;
       return matchesDate && matchesCategory;
     }).toList();
@@ -85,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Student Budget App'),
+        backgroundColor: Colors.purpleAccent,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt),
@@ -99,7 +102,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
-          )
+          ),
+          IconButton(
+            icon: const Icon(Icons.credit_card),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => EducationLoanCalculator()));
+            },
+          ),
         ],
       ),
       body: Container(
@@ -119,11 +128,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     'Total Budget: ₹${totalBudget.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 18, color: Colors.white),
+                    style: const TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 10),
                   Text(
                     'Remaining: ₹${remainingBudget.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 18, color: Colors.greenAccent),
+                    style: const TextStyle(fontSize: 20, color: Colors.greenAccent, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -139,9 +149,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(15.0),
                     ),
                     shadowColor: Colors.black45,
-                    elevation: 5,
+                    elevation: 8,
                     child: ListTile(
-                      title: Text(expense['title'], style: const TextStyle(color: Colors.black87)),
+                      title: Text(expense['title'], style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
                       subtitle: Text(
                         'Category: ${expense['category']}\n'
                         'Date: ${DateFormat.yMMMd().format(expense['dateTime'])}, '
@@ -198,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton(
           onPressed: () {
-            // Show a dialog to enter the total budget
             showDialog(
               context: context,
               builder: (context) {
@@ -209,7 +218,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   content: TextField(
                     controller: budgetController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Budget in Rupees'),
+                    decoration: const InputDecoration(
+                      labelText: 'Budget in Rupees',
+                      labelStyle: TextStyle(color: Colors.purpleAccent),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.purpleAccent),
+                      ),
+                    ),
                   ),
                   actions: [
                     TextButton(
@@ -224,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         }
                       },
-                      child: const Text('Submit'),
+                      child: const Text('Submit', style: TextStyle(color: Colors.purpleAccent)),
                     ),
                     TextButton(
                       onPressed: () {
@@ -237,120 +252,92 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             );
           },
-          child: const Text('Set Total Budget'),
-          style: ElevatedButton.styleFrom(primary: Colors.purpleAccent),
+          child: const Text('Set Total Budget', style: TextStyle(color: Colors.white)),
+          style: ElevatedButton.styleFrom(
+            primary: Colors.purpleAccent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 5,
+          ),
         ),
       ),
     );
   }
 }
 
-class AddExpense extends StatefulWidget {
-  final Function(String, double, String, DateTime) addExpense;
-  final Function(int, String, double, String, DateTime)? updateExpense;
-  final int? expenseIndex;
-  final Map<String, dynamic>? expenseToEdit;
-
-  const AddExpense({
-    Key? key,
-    required this.addExpense,
-    this.updateExpense,
-    this.expenseIndex,
-    this.expenseToEdit,
-  }) : super(key: key);
-
+class EducationLoanCalculator extends StatefulWidget {
   @override
-  State<AddExpense> createState() => _AddExpenseState();
+  _EducationLoanCalculatorState createState() => _EducationLoanCalculatorState();
 }
 
-class _AddExpenseState extends State<AddExpense> {
-  final _titleController = TextEditingController();
-  final _amountController = TextEditingController();
-  String _selectedCategory = 'Food';
-  DateTime _selectedDateTime = DateTime.now();
-  final _formKey = GlobalKey<FormState>();
+class _EducationLoanCalculatorState extends State<EducationLoanCalculator> {
+  final _loanAmountController = TextEditingController();
+  final _interestRateController = TextEditingController();
+  final _loanTenureController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.expenseToEdit != null) {
-      _titleController.text = widget.expenseToEdit!['title'];
-      _amountController.text = widget.expenseToEdit!['amount'].toString();
-      _selectedCategory = widget.expenseToEdit!['category'];
-      _selectedDateTime = widget.expenseToEdit!['dateTime'];
-    }
-  }
+  double _emi = 0.0;
+  double _totalRepayment = 0.0;
 
-  void _submitData() {
-    if (!_formKey.currentState!.validate()) return;
+  void calculateLoan() {
+    double loanAmount = double.tryParse(_loanAmountController.text) ?? 0.0;
+    double interestRate = double.tryParse(_interestRateController.text) ?? 0.0;
+    int loanTenure = int.tryParse(_loanTenureController.text) ?? 0;
 
-    final enteredTitle = _titleController.text.trim();
-    final enteredAmount = double.parse(_amountController.text);
-
-    if (widget.expenseIndex == null) {
-      widget.addExpense(enteredTitle, enteredAmount, _selectedCategory, _selectedDateTime);
-    } else {
-      widget.updateExpense!(
-        widget.expenseIndex!,
-        enteredTitle,
-        enteredAmount,
-        _selectedCategory,
-        _selectedDateTime,
+    if (loanAmount <= 0 || interestRate <= 0 || loanTenure <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter valid values.')),
       );
+      return;
     }
 
-    Navigator.of(context).pop();
+    // Calculate EMI using the formula
+    double monthlyInterestRate = (interestRate / 100) / 12;
+    int totalMonths = loanTenure * 12;
+
+    double emi = (loanAmount * monthlyInterestRate) /
+        (1 - pow(1 + monthlyInterestRate, -totalMonths));
+
+    setState(() {
+      _emi = emi;
+      _totalRepayment = emi * totalMonths;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Form(
-        key: _formKey,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Education Loan Calculator')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Title'),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a title';
-                }
-                return null;
-              },
-            ),
-            TextFormField(
-              controller: _amountController,
-              decoration: const InputDecoration(labelText: 'Amount'),
+            TextField(
+              controller: _loanAmountController,
               keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty || double.tryParse(value) == null) {
-                  return 'Please enter a valid amount';
-                }
-                return null;
-              },
+              decoration: const InputDecoration(labelText: 'Loan Amount (₹)'),
             ),
-            DropdownButtonFormField<String>(
-              value: _selectedCategory,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: ['Food', 'Transport', 'Entertainment', 'Others']
-                  .map((category) => DropdownMenuItem(
-                        value: category,
-                        child: Text(category),
-                      ))
-                  .toList(),
-              onChanged: (value) {
-                setState(() {
-                  _selectedCategory = value!;
-                });
-              },
+            TextField(
+              controller: _interestRateController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Interest Rate (%)'),
             ),
-            ElevatedButton.icon(
-              onPressed: _submitData,
-              icon: const Icon(Icons.add),
-              label: Text(widget.expenseToEdit == null ? 'Add Expense' : 'Save Changes'),
+            TextField(
+              controller: _loanTenureController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Loan Tenure (Years)'),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: calculateLoan,
+              child: const Text('Calculate EMI'),
+            ),
+            const SizedBox(height: 20),
+            if (_emi > 0)
+              Column(
+                children: [
+                  Text('EMI: ₹${_emi.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20)),
+                  Text('Total Repayment: ₹${_totalRepayment.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20)),
+                ],
+              ),
           ],
         ),
       ),
@@ -358,126 +345,143 @@ class _AddExpenseState extends State<AddExpense> {
   }
 }
 
-class FilterExpenses extends StatefulWidget {
+class AddExpense extends StatelessWidget {
+  final Function addExpense;
+  final Function updateExpense;
+  final int? expenseIndex;
+  final Map<String, dynamic>? expenseToEdit;
+
+  const AddExpense({
+    required this.addExpense,
+    required this.updateExpense,
+    this.expenseIndex,
+    this.expenseToEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final TextEditingController titleController = TextEditingController(
+      text: expenseToEdit?['title'] ?? '',
+    );
+    final TextEditingController amountController = TextEditingController(
+      text: expenseToEdit?['amount'].toString() ?? '',
+    );
+    final TextEditingController categoryController = TextEditingController(
+      text: expenseToEdit?['category'] ?? '',
+    );
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: titleController,
+            decoration: const InputDecoration(labelText: 'Title'),
+          ),
+          TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Amount'),
+          ),
+          TextField(
+            controller: categoryController,
+            decoration: const InputDecoration(labelText: 'Category'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final title = titleController.text;
+              final amount = double.tryParse(amountController.text) ?? 0.0;
+              final category = categoryController.text;
+
+              if (title.isEmpty || amount <= 0 || category.isEmpty) {
+                return;
+              }
+
+              if (expenseIndex != null) {
+                updateExpense(expenseIndex!, title, amount, category, DateTime.now());
+              } else {
+                addExpense(title, amount, category, DateTime.now());
+              }
+              Navigator.pop(context);
+            },
+            child: Text(expenseIndex == null ? 'Add Expense' : 'Update Expense'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FilterExpenses extends StatelessWidget {
   final Function(DateTime?, DateTime?, String?) applyFilters;
   final DateTime? filterStartDate;
   final DateTime? filterEndDate;
   final String? filterCategory;
 
   const FilterExpenses({
-    Key? key,
     required this.applyFilters,
     this.filterStartDate,
     this.filterEndDate,
     this.filterCategory,
-  }) : super(key: key);
-
-  @override
-  State<FilterExpenses> createState() => _FilterExpensesState();
-}
-
-class _FilterExpensesState extends State<FilterExpenses> {
-  DateTime? _startDate;
-  DateTime? _endDate;
-  String? _selectedCategory;
-
-  @override
-  void initState() {
-    super.initState();
-    _startDate = widget.filterStartDate;
-    _endDate = widget.filterEndDate;
-    _selectedCategory = widget.filterCategory;
-  }
-
-  void _pickStartDate() async {
-    DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _startDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked;
-      });
-    }
-  }
-
-  void _pickEndDate() async {
-    DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _endDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() {
-        _endDate = picked;
-      });
-    }
-  }
-
-  void _applyFilters() {
-    widget.applyFilters(_startDate, _endDate, _selectedCategory);
-    Navigator.of(context).pop();
-  }
+  });
 
   @override
   Widget build(BuildContext context) {
+    final TextEditingController categoryController = TextEditingController(text: filterCategory);
+    DateTime? startDate = filterStartDate;
+    DateTime? endDate = filterEndDate;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Filter Expenses',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: _pickStartDate,
-                  child: Text(
-                    _startDate == null
-                        ? 'Pick Start Date'
-                        : 'Start: ${DateFormat.yMMMd().format(_startDate!)}',
-                  ),
-                ),
-              ),
-              Expanded(
-                child: TextButton(
-                  onPressed: _pickEndDate,
-                  child: Text(
-                    _endDate == null
-                        ? 'Pick End Date'
-                        : 'End: ${DateFormat.yMMMd().format(_endDate!)}',
-                  ),
-                ),
-              ),
-            ],
-          ),
-          DropdownButtonFormField<String>(
-            value: _selectedCategory,
+          TextField(
+            controller: categoryController,
             decoration: const InputDecoration(labelText: 'Category'),
-            items: [null, 'Food', 'Transport', 'Entertainment', 'Others']
-                .map((category) => DropdownMenuItem(
-                      value: category,
-                      child: Text(category ?? 'All Categories'),
-                    ))
-                .toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedCategory = value;
-              });
-            },
           ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _applyFilters,
-            icon: const Icon(Icons.filter_list),
-            label: const Text('Apply Filters'),
+          ListTile(
+            title: const Text('Start Date'),
+            subtitle: Text(startDate != null ? DateFormat.yMMMd().format(startDate) : 'Select Date'),
+            trailing: IconButton(
+              icon: const Icon(Icons.calendar_today),
+              onPressed: () async {
+                final pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: startDate ?? DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (pickedDate != null) {
+                  startDate = pickedDate;
+                }
+              },
+            ),
+          ),
+          ListTile(
+            title: const Text('End Date'),
+            subtitle: Text(endDate != null ? DateFormat.yMMMd().format(endDate) : 'Select Date'),
+            trailing: IconButton(
+              icon: const Icon(Icons.calendar_today),
+              onPressed: () async {
+                final pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: endDate ?? DateTime.now(),
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (pickedDate != null) {
+                  endDate = pickedDate;
+                }
+              },
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              applyFilters(startDate, endDate, categoryController.text);
+              Navigator.pop(context);
+            },
+            child: const Text('Apply Filters'),
           ),
         ],
       ),
